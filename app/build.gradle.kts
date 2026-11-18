@@ -24,8 +24,12 @@ android {
 
   sourceSets {
     getByName("main") {
-      assets.srcDirs("src/main/assets", "../public/assets/aistudio")
+      assets.directories.addAll(listOf("src/main/assets", "../public/assets/aistudio"))
     }
+  }
+
+  androidResources {
+    ignoreAssetsPatterns.add("Screenshot*")
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
