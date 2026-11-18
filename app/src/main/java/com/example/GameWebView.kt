@@ -28,7 +28,7 @@ import java.io.SequenceInputStream
 import java.util.Collections
 
 private const val LOCAL_GAME_URL = "https://localhost/index.html"
-private const val GAME_ASSET_FILE = "after-extinction-alpha-1.42_97483156.html"
+private const val GAME_ASSET_FILE = "after-extinction-alpha-1.43_e4f23cc5.html"
 
 private val INJECTED_HTML_HEADER =
   """

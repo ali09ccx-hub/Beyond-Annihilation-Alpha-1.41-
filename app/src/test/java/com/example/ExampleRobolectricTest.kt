@@ -26,8 +26,9 @@ class ExampleRobolectricTest {
     assertTrue(bridgeJs.contains("afterx-"))
 
     val gameHtml =
-      context.assets.open("after-extinction-alpha-1.42_97483156.html").bufferedReader().readText()
+      context.assets.open("after-extinction-alpha-1.43_e4f23cc5.html").bufferedReader().readText()
     assertTrue(gameHtml.contains("<title>ما بعد الفناء</title>"))
+    assertTrue(gameHtml.contains("Alpha 1.43"))
     assertTrue(gameHtml.contains("window.onNetworkDataReceived"))
   }
 

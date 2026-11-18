@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">ما بعد الفناء</string>
-    <string name="launcher_subtitle">لعبة بقاء في عالم مفتوح · Alpha 1.42</string>
+    <string name="launcher_subtitle">لعبة بقاء في عالم مفتوح · Alpha 1.43</string>
     <string name="btn_start">ابدأ</string>
     <string name="setting_keep_screen_on">إبقاء الشاشة مضاءة</string>
     <string name="setting_immersive_mode">إخفاء أشرطة النظام (ملء الشاشة)</string>
