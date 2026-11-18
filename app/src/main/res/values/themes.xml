@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/night_void</item>
+        <item name="android:colorBackground">@color/night_void</item>
+        <item name="android:statusBarColor">@color/night_void</item>
+        <item name="android:navigationBarColor">@color/night_void</item>
+    </style>
+</resources>

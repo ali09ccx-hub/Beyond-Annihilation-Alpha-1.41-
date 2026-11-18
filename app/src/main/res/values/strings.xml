@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">ما بعد الفناء</string>
+    <string name="launcher_subtitle">لعبة بقاء في عالم مفتوح · Alpha 1.42</string>
+    <string name="btn_start">ابدأ</string>
+    <string name="setting_keep_screen_on">إبقاء الشاشة مضاءة</string>
+    <string name="setting_immersive_mode">إخفاء أشرطة النظام (ملء الشاشة)</string>
+    <string name="exit_dialog_title">الخروج من اللعبة؟</string>
+    <string name="exit_dialog_message">سيتم إغلاق اللعبة. تأكد من حفظ عالمك من قائمة الإيقاف المؤقت أولاً.</string>
+    <string name="exit_dialog_confirm">خروج</string>
+    <string name="exit_dialog_cancel">متابعة اللعب</string>
+    <string name="exit_dialog_home">الشاشة الرئيسية</string>
+</resources>

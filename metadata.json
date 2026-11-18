@@ -1,0 +1,6 @@
+{
+  "name": "ما بعد الفناء",
+  "description": "مشغل لعبة البقاء ما بعد الفناء مع دعم اللعب الجماعي عبر WebRTC",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

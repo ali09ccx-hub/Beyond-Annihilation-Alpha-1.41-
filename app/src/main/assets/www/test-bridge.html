@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>اختبار جسر الشبكة — ما بعد الفناء</title>
+  <style>
+    :root {
+      --bg: #0a0f0d;
+      --panel: #121b17;
+      --line: rgba(233, 239, 230, 0.16);
+      --ink: #e9efe6;
+      --mut: #93a699;
+      --acc: #e0a63e;
+      --ok: #92c565;
+      --bad: #d9564c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Tajawal", "Segoe UI", Tahoma, sans-serif;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      color: var(--acc);
+    }
+    .sub {
+      margin: 0 0 16px;
+      color: var(--mut);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 17px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      color: var(--mut);
+    }
+    .badge.ok { background: rgba(146,197,101,0.2); color: var(--ok); }
+    .badge.bad { background: rgba(217,86,76,0.2); color: #ff9d92; }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    input {
+      flex: 1;
+      min-width: 110px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,0.35);
+      color: var(--ink);
+      font: 700 14px monospace;
+      direction: ltr;
+      text-align: center;
+    }
+    button {
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.08);
+      color: var(--ink);
+      font: 700 13px "Tajawal", sans-serif;
+      cursor: pointer;
+    }
+    button.pri {
+      background: var(--acc);
+      color: #1b1608;
+      border-color: transparent;
+    }
+    button.danger {
+      background: rgba(217,86,76,0.22);
+      color: #ffb3ab;
+    }
+    .log {
+      height: 240px;
+      overflow-y: auto;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--line);
+      font: 12px/1.55 monospace;
+      direction: ltr;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    iframe { display: none; }
+  </style>
+</head>
+<body>
+  <h1>اختبار جسر الشبكة المحلي (WebRTC + PeerJS)</h1>
+  <p class="sub">
+    تحاكي هذه الصفحة جهازين (المضيف والضيف) في متصفح واحد باستخدام نفس ملف <code>net-bridge.js</code>.
+    كل لوحة تشغّل إطاراً معزولاً يملك <code>window.sendNetworkData</code> و<code>window.onNetworkDataReceived</code> واتصال WebRTC حقيقي.
+  </p>
+
+  <div class="grid">
+    <section class="card">
+      <h2>
+        <span>1) المضيف (Host)</span>
+        <span id="hostBadge" class="badge">غير متصل</span>
+      </h2>
+      <div class="row">
+        <input id="hostCode" maxlength="6" value="TST742" placeholder="CODE" />
+        <button class="pri" id="btnHostStart">إنشاء غرفة</button>
+        <button class="danger" id="btnHostLeave">إغلاق</button>
+      </div>
+      <div class="row">
+        <button id="btnHostPing">إرسال رسالة دردشة</button>
+        <button id="btnHostChunk">اختبار حزمة 12KB+</button>
+      </div>
+      <div id="hostLog" class="log"></div>
+    </section>
+
+    <section class="card">
+      <h2>
+        <span>2) الضيف (Client)</span>
+        <span id="clientBadge" class="badge">غير متصل</span>
+      </h2>
+      <div class="row">
+        <input id="clientCode" maxlength="6" value="TST742" placeholder="CODE" />
+        <button class="pri" id="btnClientJoin">انضمام</button>
+        <button class="danger" id="btnClientLeave">مغادرة</button>
+      </div>
+      <div class="row">
+        <button id="btnClientPing">إرسال حركة + دردشة</button>
+        <button id="btnClientBurst">محاكاة 20 رسالة/ث</button>
+      </div>
+      <div id="clientLog" class="log"></div>
+    </section>
+  </div>
+
+  <iframe id="hostFrame"></iframe>
+  <iframe id="clientFrame"></iframe>
+
+  <script>
+    (function () {
+      function makeIframeHtml() {
+        return [
+          '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+          '<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"><\/script>',
+          '<script src="./net-bridge.js"><\/script>',
+          '</head><body></body></html>'
+        ].join('');
+      }
+
+      var hostFrame = document.getElementById('hostFrame');
+      var clientFrame = document.getElementById('clientFrame');
+      var hostLog = document.getElementById('hostLog');
+      var clientLog = document.getElementById('clientLog');
+      var hostBadge = document.getElementById('hostBadge');
+      var clientBadge = document.getElementById('clientBadge');
+      var hostCode = document.getElementById('hostCode');
+      var clientCode = document.getElementById('clientCode');
+
+      function appendLog(el, prefix, text) {
+        var ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+        el.textContent += '[' + ts + '] ' + prefix + ' ' + text + '\n';
+        el.scrollTop = el.scrollHeight;
+      }
+
+      function setBadge(el, text, cls) {
+        el.textContent = text;
+        el.className = 'badge ' + (cls || '');
+      }
+
+      function setupPeerFrame(frame, logEl, badgeEl, onReady) {
+        frame.srcdoc = makeIframeHtml();
+        frame.onload = function () {
+          var w = frame.contentWindow;
+          w.onNetworkDataReceived = function (raw) {
+            var str = typeof raw === 'string' ? raw : JSON.stringify(raw);
+            appendLog(logEl, 'RX <-', str.length > 200 ? str.slice(0, 200) + '... (' + str.length + ' chars)' : str);
+            try {
+              var o = typeof raw === 'string' ? JSON.parse(raw) : raw;
+              if (o && o.c === 'connected') setBadge(badgeEl, 'متصل', 'ok');
+              else if (o && o.c === 'disconnected') setBadge(badgeEl, 'انقطع الاتصال', 'bad');
+              else if (o && o.c === 'error') setBadge(badgeEl, o.msg || 'خطأ', 'bad');
+              else if (o && o.c === 'topology') appendLog(logEl, 'INFO', 'Star topology enabled: ' + o.star);
+            } catch (_) {}
+          };
+          if (onReady) onReady(w);
+        };
+      }
+
+      setupPeerFrame(hostFrame, hostLog, hostBadge);
+      setupPeerFrame(clientFrame, clientLog, clientBadge);
+
+      document.getElementById('btnHostStart').onclick = function () {
+        var code = hostCode.value.trim().toUpperCase() || 'TST742';
+        hostCode.value = code;
+        clientCode.value = code;
+        setBadge(hostBadge, 'جاري الفتح...', '');
+        var msg = JSON.stringify({ c: 'host', code: code, name: 'المضيف', ver: 'mp3' });
+        appendLog(hostLog, 'TX ->', msg);
+        hostFrame.contentWindow.sendNetworkData(msg);
+      };
+
+      document.getElementById('btnHostLeave').onclick = function () {
+        var msg = JSON.stringify({ c: 'leave' });
+        appendLog(hostLog, 'TX ->', msg);
+        hostFrame.contentWindow.sendNetworkData(msg);
+        setBadge(hostBadge, 'مغلق', '');
+      };
+
+      document.getElementById('btnHostPing').onclick = function () {
+        var msg = JSON.stringify({ f: 'pHost', to: 'all', t: 'chat', d: { s: 'مرحباً من المضيف!' } });
+        appendLog(hostLog, 'TX ->', msg);
+        hostFrame.contentWindow.sendNetworkData(msg);
+      };
+
+      document.getElementById('btnHostChunk').onclick = function () {
+        var big = new Array(13500).join('A');
+        var msg = JSON.stringify({ f: 'pHost', to: 'all', t: 'wel', d: { blob: big } });
+        appendLog(hostLog, 'TX ->', 'Sending large payload (' + msg.length + ' chars)');
+        hostFrame.contentWindow.sendNetworkData(msg);
+      };
+
+      document.getElementById('btnClientJoin').onclick = function () {
+        var code = clientCode.value.trim().toUpperCase();
+        clientCode.value = code;
+        setBadge(clientBadge, 'جاري الاتصال...', '');
+        var msg = JSON.stringify({ c: 'join', code: code, name: 'الضيف', ver: 'mp3' });
+        appendLog(clientLog, 'TX ->', msg);
+        clientFrame.contentWindow.sendNetworkData(msg);
+      };
+
+      document.getElementById('btnClientLeave').onclick = function () {
+        var msg = JSON.stringify({ c: 'leave' });
+        appendLog(clientLog, 'TX ->', msg);
+        clientFrame.contentWindow.sendNetworkData(msg);
+        setBadge(clientBadge, 'غادر الغرفة', '');
+      };
+
+      document.getElementById('btnClientPing').onclick = function () {
+        var msg = JSON.stringify({ f: 'pClient1', to: 'all', t: 'chat', d: { s: 'أهلاً أيها المضيف!' } });
+        appendLog(clientLog, 'TX ->', msg);
+        clientFrame.contentWindow.sendNetworkData(msg);
+      };
+
+      document.getElementById('btnClientBurst').onclick = function () {
+        var n = 0;
+        var timer = setInterval(function () {
+          n++;
+          var msg = JSON.stringify({ f: 'pClient1', to: 'all', t: 'ps', d: { x: n, z: n * 0.5 }, v: 1 });
+          clientFrame.contentWindow.sendNetworkData(msg);
+          if (n >= 20) {
+            clearInterval(timer);
+            appendLog(clientLog, 'TX ->', 'Sent 20 state packets in 1s');
+          }
+        }, 50);
+      };
+    })();
+  </script>
+</body>
+</html>
