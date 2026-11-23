@@ -37,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -119,8 +120,10 @@ class MainActivity : ComponentActivity() {
               LauncherSplashScreen(
                 keepScreenOn = uiState.keepScreenOn,
                 immersiveMode = uiState.immersiveMode,
+                reduceLag = uiState.reduceLag,
                 onToggleKeepScreenOn = viewModel::setKeepScreenOn,
                 onToggleImmersiveMode = viewModel::setImmersiveMode,
+                onToggleReduceLag = viewModel::setReduceLag,
                 onStartClick = viewModel::startGame,
               )
             } else {
@@ -130,6 +133,7 @@ class MainActivity : ComponentActivity() {
 
               GameWebView(
                 modifier = Modifier.fillMaxSize(),
+                reduceLag = uiState.reduceLag,
                 onPageReady = viewModel::onGameLoaded,
                 onWebViewCreated = { activeWebView = it },
               )
@@ -199,8 +203,10 @@ class MainActivity : ComponentActivity() {
 private fun LauncherSplashScreen(
   keepScreenOn: Boolean,
   immersiveMode: Boolean,
+  reduceLag: Boolean,
   onToggleKeepScreenOn: (Boolean) -> Unit,
   onToggleImmersiveMode: (Boolean) -> Unit,
+  onToggleReduceLag: (Boolean) -> Unit,
   onStartClick: () -> Unit,
 ) {
   Box(modifier = Modifier.fillMaxSize()) {
@@ -238,8 +244,10 @@ private fun LauncherSplashScreen(
             modifier = Modifier.weight(0.9f),
             keepScreenOn = keepScreenOn,
             immersiveMode = immersiveMode,
+            reduceLag = reduceLag,
             onToggleKeepScreenOn = onToggleKeepScreenOn,
             onToggleImmersiveMode = onToggleImmersiveMode,
+            onToggleReduceLag = onToggleReduceLag,
           )
         }
       } else {
@@ -258,8 +266,10 @@ private fun LauncherSplashScreen(
             modifier = Modifier.fillMaxWidth(),
             keepScreenOn = keepScreenOn,
             immersiveMode = immersiveMode,
+            reduceLag = reduceLag,
             onToggleKeepScreenOn = onToggleKeepScreenOn,
             onToggleImmersiveMode = onToggleImmersiveMode,
+            onToggleReduceLag = onToggleReduceLag,
           )
         }
       }
@@ -335,8 +345,10 @@ private fun LauncherSettingsCard(
   modifier: Modifier = Modifier,
   keepScreenOn: Boolean,
   immersiveMode: Boolean,
+  reduceLag: Boolean,
   onToggleKeepScreenOn: (Boolean) -> Unit,
   onToggleImmersiveMode: (Boolean) -> Unit,
+  onToggleReduceLag: (Boolean) -> Unit,
 ) {
   Surface(
     modifier = modifier,
@@ -345,6 +357,19 @@ private fun LauncherSettingsCard(
     border = BorderStroke(1.dp, BorderMoss),
   ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
+      SettingSwitchRow(
+        icon = Icons.Rounded.Speed,
+        label = stringResource(R.string.setting_reduce_lag),
+        checked = reduceLag,
+        onCheckedChange = onToggleReduceLag,
+        switchTestTag = "reduce_lag_switch",
+      )
+
+      HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = BorderMoss.copy(alpha = 0.7f),
+      )
+
       SettingSwitchRow(
         icon = Icons.Rounded.BrightnessHigh,
         label = stringResource(R.string.setting_keep_screen_on),

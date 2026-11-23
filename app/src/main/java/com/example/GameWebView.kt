@@ -3,6 +3,7 @@ package com.example
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color as AndroidColor
+import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.PermissionRequest
@@ -28,17 +29,36 @@ import java.io.SequenceInputStream
 import java.util.Collections
 
 private const val LOCAL_GAME_URL = "https://localhost/index.html"
-private const val GAME_ASSET_FILE = "after-extinction-alpha-1.43_e4f23cc5.html"
+private const val GAME_ASSET_FILE = "after-extinction-alpha-1.54_d8db5a3f.html"
+private const val THREE_ASSET_FILE = "three.min_9274bbce.js"
 
-private val INJECTED_HTML_HEADER =
+private fun buildInjectedHtmlHeader(reduceLag: Boolean): ByteArray =
   """
   <!DOCTYPE html>
   <html lang="ar" dir="rtl">
   <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script>if(!window.Peer)document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>')</script>
+  <style>
+  @font-face{font-family:'Tajawal';font-style:normal;font-weight:400 800;font-display:swap;src:url('./fonts/tajawal.ttf') format('truetype');}
+  @font-face{font-family:'Reem Kufi';font-style:normal;font-weight:400 700;font-display:swap;src:url('./fonts/reem_kufi.ttf') format('truetype');}
+  </style>
+  <script>
+  (function(){
+    try{
+      var LS=window.localStorage,want=${if (reduceLag) "true" else "false"},prev=LS.getItem('afterx_launcher_lag_v1');
+      if(want){
+        if(prev!=='1'||!LS.getItem('afterx_gfx')){
+          LS.setItem('afterx_gfx',JSON.stringify({q:1,sh:false,fps:0,auto:1,man:0,vd:0.7,cd:0.6,gr:0.25,res:0.7,ef:0.3,cap:45,lod:1,nl:1,vg:120,mm:1.2}));
+          LS.setItem('afterx_launcher_lag_v1','1');
+        }
+      }else if(prev==='1'){
+        LS.removeItem('afterx_gfx');
+        LS.setItem('afterx_launcher_lag_v1','0');
+      }
+    }catch(e){}
+  })();
+  </script>
   <script src="./net-bridge.js"></script>
   """
     .trimIndent()
@@ -50,6 +70,7 @@ private val INJECTED_HTML_FOOTER = "\n</body></html>".toByteArray(Charsets.UTF_8
 @Composable
 fun GameWebView(
   modifier: Modifier = Modifier,
+  reduceLag: Boolean = true,
   onPageReady: () -> Unit,
   onWebViewCreated: (WebView) -> Unit,
 ) {
@@ -57,9 +78,10 @@ fun GameWebView(
   val lifecycleOwner = LocalLifecycleOwner.current
 
   val webView =
-    remember(context) {
+    remember(context, reduceLag) {
       createConfiguredGameWebView(
         context = context,
+        reduceLag = reduceLag,
         onPageReady = onPageReady,
       ).also(onWebViewCreated)
     }
@@ -103,9 +125,12 @@ fun GameWebView(
 @SuppressLint("SetJavaScriptEnabled")
 private fun createConfiguredGameWebView(
   context: Context,
+  reduceLag: Boolean,
   onPageReady: () -> Unit,
 ): WebView {
   val assetManager = context.assets
+  val resources = context.resources
+  val headerBytes = buildInjectedHtmlHeader(reduceLag)
 
   return WebView(context).apply {
     layoutParams =
@@ -114,7 +139,11 @@ private fun createConfiguredGameWebView(
         ViewGroup.LayoutParams.MATCH_PARENT,
       )
     setBackgroundColor(AndroidColor.parseColor("#0A0F0D"))
-    setLayerType(View.LAYER_TYPE_HARDWARE, null)
+    // Native Chromium WebGL compositing without an extra Android offscreen texture copy.
+    setLayerType(View.LAYER_TYPE_NONE, null)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+    }
     isHorizontalScrollBarEnabled = false
     isVerticalScrollBarEnabled = false
     overScrollMode = View.OVER_SCROLL_NEVER
@@ -131,7 +160,7 @@ private fun createConfiguredGameWebView(
       builtInZoomControls = false
       displayZoomControls = false
       textZoom = 100
-      cacheMode = WebSettings.LOAD_DEFAULT
+      cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
       mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
     }
 
@@ -156,12 +185,42 @@ private fun createConfiguredGameWebView(
           request: WebResourceRequest?,
         ): WebResourceResponse? {
           val url = request?.url ?: return null
-          if (url.scheme != "https" || url.host != "localhost") {
+          val host = url.host ?: return null
+          val rawPath = url.path ?: "/"
+          val cleanPath = rawPath.trimStart('/')
+
+          // Intercept external Google Fonts so offline launches never stall or wait on DNS/TLS.
+          if (host == "fonts.googleapis.com" || host == "fonts.gstatic.com") {
+            return WebResourceResponse(
+              "text/css",
+              "UTF-8",
+              200,
+              "OK",
+              mapOf("Cache-Control" to "max-age=86400"),
+              ByteArrayInputStream(ByteArray(0)),
+            )
+          }
+
+          // Fallback safety net: if three.min.js is requested from CDN, serve the local bundle.
+          if (host == "cdnjs.cloudflare.com" && cleanPath.endsWith("three.min.js")) {
+            return try {
+              WebResourceResponse(
+                "application/javascript",
+                "UTF-8",
+                200,
+                "OK",
+                mapOf("Cache-Control" to "max-age=86400"),
+                assetManager.open(THREE_ASSET_FILE),
+              )
+            } catch (_: IOException) {
+              null
+            }
+          }
+
+          if (url.scheme != "https" || host != "localhost") {
             return null
           }
 
-          val rawPath = url.path ?: "/"
-          val cleanPath = rawPath.trimStart('/')
           if (cleanPath.isEmpty() || cleanPath == "index.html") {
             return try {
               val gameStream = assetManager.open(GAME_ASSET_FILE)
@@ -169,7 +228,7 @@ private fun createConfiguredGameWebView(
                 SequenceInputStream(
                   Collections.enumeration(
                     listOf(
-                      ByteArrayInputStream(INJECTED_HTML_HEADER),
+                      ByteArrayInputStream(headerBytes),
                       gameStream,
                       ByteArrayInputStream(INJECTED_HTML_FOOTER),
                     )
@@ -183,9 +242,50 @@ private fun createConfiguredGameWebView(
                 mapOf("Cache-Control" to "no-store"),
                 combined,
               )
-            } catch (e: IOException) {
+            } catch (_: IOException) {
               notFoundResponse("text/html")
             }
+          }
+
+          if (cleanPath == "vendor/three.min.js") {
+            return try {
+              WebResourceResponse(
+                "application/javascript",
+                "UTF-8",
+                200,
+                "OK",
+                mapOf("Cache-Control" to "max-age=86400"),
+                assetManager.open(THREE_ASSET_FILE),
+              )
+            } catch (_: IOException) {
+              notFoundResponse("application/javascript")
+            }
+          }
+
+          if (cleanPath == "fonts/tajawal.ttf") {
+            return WebResourceResponse(
+              "font/ttf",
+              null,
+              200,
+              "OK",
+              mapOf("Cache-Control" to "max-age=86400"),
+              resources.openRawResource(R.font.tajawal),
+            )
+          }
+
+          if (cleanPath == "fonts/reem_kufi.ttf") {
+            return WebResourceResponse(
+              "font/ttf",
+              null,
+              200,
+              "OK",
+              mapOf("Cache-Control" to "max-age=86400"),
+              resources.openRawResource(R.font.reem_kufi),
+            )
+          }
+
+          if (cleanPath == "favicon.ico") {
+            return notFoundResponse("image/x-icon")
           }
 
           val assetSubPath = "www/$cleanPath"
@@ -220,6 +320,7 @@ private fun mimeTypeFor(path: String): String =
     path.endsWith(".html", ignoreCase = true) -> "text/html"
     path.endsWith(".css", ignoreCase = true) -> "text/css"
     path.endsWith(".json", ignoreCase = true) -> "application/json"
+    path.endsWith(".ttf", ignoreCase = true) -> "font/ttf"
     path.endsWith(".png", ignoreCase = true) -> "image/png"
     path.endsWith(".svg", ignoreCase = true) -> "image/svg+xml"
     else -> "application/octet-stream"

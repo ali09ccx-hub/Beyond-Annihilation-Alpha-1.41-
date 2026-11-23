@@ -26,10 +26,18 @@ class ExampleRobolectricTest {
     assertTrue(bridgeJs.contains("afterx-"))
 
     val gameHtml =
-      context.assets.open("after-extinction-alpha-1.43_e4f23cc5.html").bufferedReader().readText()
+      context.assets.open("after-extinction-alpha-1.54_d8db5a3f.html").bufferedReader().readText()
     assertTrue(gameHtml.contains("<title>ما بعد الفناء</title>"))
-    assertTrue(gameHtml.contains("Alpha 1.43"))
+    assertTrue(gameHtml.contains("Alpha 1.54"))
     assertTrue(gameHtml.contains("window.onNetworkDataReceived"))
+
+    val threeJs =
+      context.assets.open("three.min_9274bbce.js").bufferedReader().readText()
+    assertTrue(threeJs.contains("THREE"))
+
+    // Verify local offline Arabic fonts open cleanly
+    context.resources.openRawResource(R.font.tajawal).use { assertTrue(it.available() > 0) }
+    context.resources.openRawResource(R.font.reem_kufi).use { assertTrue(it.available() > 0) }
   }
 
   @Test
@@ -39,10 +47,12 @@ class ExampleRobolectricTest {
 
     assertTrue(vm.uiState.value.keepScreenOn)
     assertTrue(vm.uiState.value.immersiveMode)
+    assertTrue(vm.uiState.value.reduceLag)
     assertFalse(vm.uiState.value.inGame)
 
     vm.setKeepScreenOn(false)
     vm.setImmersiveMode(false)
+    vm.setReduceLag(false)
     vm.startGame()
     assertTrue(vm.uiState.value.inGame)
     assertTrue(vm.uiState.value.isGameLoading)
@@ -60,5 +70,6 @@ class ExampleRobolectricTest {
     val vmReloaded = LauncherViewModel(app)
     assertFalse(vmReloaded.uiState.value.keepScreenOn)
     assertFalse(vmReloaded.uiState.value.immersiveMode)
+    assertFalse(vmReloaded.uiState.value.reduceLag)
   }
 }

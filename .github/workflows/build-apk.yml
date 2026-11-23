@@ -87,14 +87,14 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p build-apk-out
-          cp app/build/outputs/apk/debug/app-debug.apk build-apk-out/after-extinction-alpha-1.43.apk
-          ls -lh build-apk-out/after-extinction-alpha-1.43.apk
+          cp app/build/outputs/apk/debug/app-debug.apk build-apk-out/after-extinction-alpha-1.54.apk
+          ls -lh build-apk-out/after-extinction-alpha-1.54.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: AfterExtinction-APK
-          path: build-apk-out/after-extinction-alpha-1.43.apk
+          path: build-apk-out/after-extinction-alpha-1.54.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -102,4 +102,4 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build-apk-out/after-extinction-alpha-1.43.apk
+          files: build-apk-out/after-extinction-alpha-1.54.apk

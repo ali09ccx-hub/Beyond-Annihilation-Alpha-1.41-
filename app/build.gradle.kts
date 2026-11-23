@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.afterextinction.axm42k"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
-    versionName = "1.43"
+    versionCode = 3
+    versionName = "1.54"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -31,6 +31,7 @@ android {
   androidResources {
     ignoreAssetsPatterns.add("Screenshot*")
     ignoreAssetsPatterns.add("after-extinction-alpha-1.42*")
+    ignoreAssetsPatterns.add("after-extinction-alpha-1.43*")
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
@@ -74,7 +75,21 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all {
+        val cachedJarDir =
+          file(
+            "/home/appuser/.m2/repository/org/robolectric/android-all-instrumented/16-robolectric-13921718-i7"
+          )
+        if (cachedJarDir.exists()) {
+          it.systemProperty("robolectric.offline", "true")
+          it.systemProperty("robolectric.dependency.dir", cachedJarDir.absolutePath)
+        }
+      }
+    }
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
